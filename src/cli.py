@@ -72,6 +72,27 @@ checkout_parser.add_argument("commit",
 checkout_parser.add_argument("path",
                              help = "the EMPTY directory to checkout on.")
 
+show_ref_parser = argsubparsers.add_parser("show-ref", 
+                                           help = "List references.")
+
+tag_parser = argsubparsers.add_parser("tag",
+                                      help="List and create tags")
+
+tag_parser.add_argument("-a",
+                        action="store_true",
+                        dest="create_tag_object",
+                        help="Whether to create a tag object")
+
+tag_parser.add_argument("name",
+                        nargs="?",
+                        help="The new tag's name")
+
+tag_parser.add_argument("object",
+                        default="HEAD",
+                        nargs="?",
+                        help="The object the new tag will point to")
+
+
 def main(argv = sys.argv[1 : ]):
     args = argparser.parse_args(argv)
     match args.command:

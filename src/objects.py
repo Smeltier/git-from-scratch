@@ -1,7 +1,8 @@
 import zlib
 import hashlib
 import os
-from repository import repository_file
+import re
+from repository import repository_file, repository_directory, reference_resolve
 
 class GitObject (object):
     def __init__(self, data = None):
@@ -59,8 +60,8 @@ class GitTree (GitObject):
     def init(self):
         self.items = list()
 
-
-# GitTag.
+class GitTag (GitCommit):
+    format = b'tag'
 
 def object_read(repository, sha):
     path = repository_file(repository, "objects", sha[0:2], sha[2:])
@@ -103,6 +104,71 @@ def object_write(object, repository = None):
 
 def object_find(repository, name, format = None, follow = True):
     return name
+
+def object_resolve(repository, name):
+    candidates = list()
+    hashRE = re.compile(r"^[0-9A-Fa-f]{4,40}$")
+
+    if not name.strip():
+        return None
+    
+    if name == "HEAD":
+        return [reference_resolve(repository, "HEAD")]
+    
+    if hashRE.match(name):
+        name = name.lower()
+        prefix = name[0 : 2]
+        path = repository_directory(repository, "objects", prefix, mkdir = False)
+
+        if path:
+            rem = name[2:]
+            for f in os.listdir(path):
+                if f.startswith(rem):
+                    candidates.append(prefix + f)
+    
+    as_tag = reference_resolve(repository, "refs/tags/" + name)
+    if as_tag:
+        candidates.append(as_tag)
+    
+    as_branch = reference_resolve(repository, "refs/heads/" + name)
+    if as_branch:
+        candidates.append(as_branch)
+    
+    as_remote_branch = reference_resolve(repository, "refs/remotes/" + name)
+    if as_remote_branch:
+        candidates.append(as_remote_branch)
+    
+    return candidates
+
+def object_find(repository, name, format = None, follow = True):
+    sha = object_resolve(repository, name)
+
+    if not sha:
+        raise Exception(f"No such reference {name}.");
+
+    if len(sha) > 1:
+        raise Exception("Ambiguous reference {name}: Candidates are: \n - {'\n - '.join(sha)}")
+    
+    sha = sha[0]
+
+    if not format:
+        return sha
+    
+    while True:
+        object = object_read(repository, sha)
+
+        if object.format == format:
+            return sha;
+
+        if not follow:
+            return None
+        
+        if object.format == b'tag':
+            sha = object.kvlm[b'object'].decode("ascii")
+        elif object.format == b'commit' and format == b'tree':
+            sha = object.kvlm[b'tree'].decode("ascii")
+        else:
+            return None
 
 def object_hash(find, format, repository = None):
     data = find.read()
@@ -218,5 +284,3 @@ def tree_serialize(object):
         return_value += sha.to_bytes(20, byteorder = "big")
 
     return return_value
-
-

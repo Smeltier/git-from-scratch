@@ -98,3 +98,34 @@ def repository_find(path = ".", required = True):
         else: return None
 
     return repository_find(parent, required)
+
+def reference_resolve(repository, reference):
+    path = repository_file(repository, reference)
+
+    if not os.path.isfile(path):
+        return None
+    
+    with open(path, 'r') as file:
+        data = file.read()[: -1]
+    
+    if data.startswith("ref: "):
+        return reference_resolve(repository, data[5 :])
+    else:
+        return data
+    
+def reference_list(repository, path = None):
+
+    if not path:
+        path = repository_directory(repository, "refs")
+    
+    return_var = dict()
+
+    for f in sorted(os.listdir(path)):
+        can = os.path.join(path, f)
+
+        if os.path.isdir(can):
+            return_var[f] = reference_list(repository, can)
+        else:
+            return_var[f] = reference_resolve(repository, can)
+    
+    return return_var
