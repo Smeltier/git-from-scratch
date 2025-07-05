@@ -1,6 +1,21 @@
 import argparse
 import sys
-from .commands import init, cat_file, hash_object, log
+
+from .commands import init
+from .commands import add
+from .commands import commit
+from .commands import cat_file
+from .commands import check_ignore
+from .commands import checkout
+from .commands import hash_object
+from .commands import log
+from .commands import ls_files
+from .commands import ls_tree
+from .commands import rev_parse
+from .commands import rm
+from .commands import show_ref
+from .commands import status
+from .commands import tag
 
 argparser = argparse.ArgumentParser(description = "Content tracker")
 argsubparsers = argparser.add_subparsers(title="Commands", dest="command")
@@ -24,25 +39,40 @@ cat_file_parser.add_argument("object",
 
 hash_object_parser = argsubparsers.add_parser("hash-object", help = "Compute object ID and optionally creates a blob from a file")
 hash_object_parser.add_argument("-t",
-                                metavar="type",
-                                dest="type",
-                                choices=["blob", "commit", "tag", "tree"],
-                                default="blob",
-                                help="Specify the type")
+                                metavar = "type",
+                                dest = "type",
+                                choices = ["blob", "commit", "tag", "tree"],
+                                default = "blob",
+                                help = "Specify the type")
 hash_object_parser.add_argument("-w",
-                                dest="write",
-                                action="store_true",
-                                help="Actually write the object into the database")
+                                dest = "write",
+                                action = "store_true",
+                                help = "Actually write the object into the database")
 hash_object_parser.add_argument("path", 
-                                help="Read object from <file>") 
+                                help = "Read object from <file>") 
 
 log_parser = argsubparsers.add_parser("log", help="Display history of a given commit.")
 log_parser.add_argument("commit",
-                        default="HEAD",
-                        nargs="?",
-                        help="Commit to start at.")
+                        default = "HEAD",
+                        nargs = "?",
+                        help = "Commit to start at.")
 
-def main(argv = sys.argv[1:]):
+list_tree_parser =  argsubparsers.add_parser("ls-tree", help="Pretty-print a tree object.")
+list_tree_parser.add_argument("-r",
+                   dest="recursive",
+                   action="store_true",
+                   help="Recurse into sub-trees")
+
+list_tree_parser.add_argument("tree",
+                              help = "A tree-ish object")
+
+checkout_parser = argsubparsers.add_parser("checkout", help="Checkout a commit inside of a directory.")
+checkout_parser.add_argument("commit",
+                             help = "The commit or tree to checkout.")
+checkout_parser.add_argument("path",
+                             help = "the EMPTY directory to checkout on.")
+
+def main(argv = sys.argv[1 : ]):
     args = argparser.parse_args(argv)
     match args.command:
         case "init"         :   init.cmd_init(args)

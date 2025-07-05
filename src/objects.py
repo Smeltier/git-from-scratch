@@ -18,7 +18,7 @@ class GitObject (object):
     def init(self):
         pass
 
-class GitBlob(GitObject):
+class GitBlob (GitObject):
     format = b'blob'
 
     def serialize(self, repo):
@@ -27,7 +27,7 @@ class GitBlob(GitObject):
     def deserialize(self, data):
         self.blobdata = data
 
-class GitCommit(GitObject):
+class GitCommit (GitObject):
     format = b'commit'
 
     def deserialize(self, data):
@@ -39,7 +39,28 @@ class GitCommit(GitObject):
     def init(self):
         self.kvlm = dict()
 
-# GitTree, GitTag.
+class GitTreeLeaf (GitObject):
+
+    def __init__(self, mode, path, sha):
+        self.mode = mode
+        self.path = path
+        self.sha = sha
+
+class GitTree (GitObject):
+
+    format = b'tree'
+
+    def deserialize(self, data):
+        self.items = tree_parse(data)
+
+    def serialize(self):
+        return tree_serialize(self)
+    
+    def init(self):
+        self.items = list()
+
+
+# GitTag.
 
 def object_read(repository, sha):
     path = repository_file(repository, "objects", sha[0:2], sha[2:])
@@ -144,3 +165,58 @@ def kvlm_serialize(kvlm):
     return_value += b'\n' + kvlm[None]
 
     return return_value
+
+def tree_parse_one(raw, start = 0):
+    x = raw.find(b' ', start)
+    assert x - start == 5 or x - start == 6
+
+    mode = raw[start : x]
+    if len(mode) == 5:
+        mode = b"0" + mode
+    
+    y = raw.find(b'\x00', x)
+
+    path = raw[x + 1 : y]
+
+    raw_sha = int.from_bytes(raw[y + 1 : y + 21], "big")
+
+    sha = format(raw_sha, "040x")
+
+    return y + 21, GitTreeLeaf(mode, path.decode("utf8"), sha)
+
+def tree_parse(raw):
+    position = 0
+    max = len(raw)
+    ret = list()
+
+    while position < max:
+        position, data = tree_parse_one(raw, position)
+        ret.append(data)
+
+    return ret
+
+def tree_leaf_sort_key(leaf):
+    if leaf.mode.startswith(b"10"):
+        return leaf.path
+    else:
+        return leaf.path + "/"
+    
+def tree_serialize(object):
+
+    object.items.sort(key = tree_leaf_sort_key)
+
+    return_value = b''
+
+    for i in object.items:
+
+        sha = int(i.sha, 16)
+
+        return_value += i.mode
+        return_value += b' '
+        return_value += i.path.encode("utf8")
+        return_value += b'\x00'
+        return_value += sha.to_bytes(20, byteorder = "big")
+
+    return return_value
+
+

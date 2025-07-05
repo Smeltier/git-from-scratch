@@ -5,7 +5,7 @@ from ..objects import object_find, object_read
 def cmd_log(args):
     repo = repository_find()
 
-    print("digraph wyaglog{")
+    print("digraph wyaglog {")
     print("  node[shape=rect]")
     log_graph_vizualize(repo, object_find(repo, args.commit), set())
     print("}")
